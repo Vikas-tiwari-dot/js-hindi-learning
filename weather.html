@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Weather App VIKAS</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      transition: background 0.5s ease;
+    }
+    .weather-container {
+      background: #fff; 
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      text-align: center;
+      width: 400px;
+    }
+    input {
+      width: 75%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 15px;
+      background: #4facfe;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #0077ff;
+    }
+    .temp {
+      font-size: 28px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .forecast {
+      margin-top: 20px;
+    }
+    .forecast-day {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px;
+      border-bottom: 1px solid #ddd;
+    }
+    .forecast-day img {
+      width: 35px;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="weather-container">
+    <h2>🌤 Weather App</h2>
+    <input type="text" id="locationInput" placeholder="Enter city name">
+    <br>
+    <button onclick="getWeather()">Get Weather</button>
+    <button onclick="getMyLocationWeather()">📍 Use My Location</button>
+    <button onclick="toggleUnit()">🌡 Toggle °C/°F</button>
+    <div id="result"></div>
+    <div class="forecast" id="forecast"></div>
+    <canvas id="tempChart"></canvas>
+  </div>
+
+  <script>
+    const apiKey = "cff9a1548d7f4bcaae9151452253008"; // Replace with your active WeatherAPI key
+    let currentUnit = "C"; // default Celsius
+    let forecastTemps = [];
+
+    async function getWeather(location = "London") {
+      const userInput = document.getElementById("locationInput").value.trim();
+      const query = userInput || location;
+      const url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${query}&days=7&aqi=no&alerts=no`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        // Change background (day/night)
+        const isDay = data.current.is_day === 1;
+        document.body.style.background = isDay
+          ? "linear-gradient(to right, #4facfe, #00f2fe)"
+          : "linear-gradient(to right, #2c3e50, #4ca1af)";
+
+        // Current Weather
+        const city = data.location.name;
+        const country = data.location.country;
+        const tempC = data.current.temp_c;
+        const tempF = data.current.temp_f;
+        const condition = data.current.condition.text;
+        const icon = data.current.condition.icon;
+
+        const temp = currentUnit === "C" ? `${tempC}°C` : `${tempF}°F`;
+
+        document.getElementById("result").innerHTML = `
+          <h3>${city}, ${country}</h3>
+          <img src="${icon}" alt="Weather icon">
+          <div class="temp">${temp}</div>
+          <p>${condition}</p>
+        `;
+
+        // Forecast
+        let forecastHTML = "<h3>📅 7-Day Forecast</h3>";
+        forecastTemps = [];
+        const labels = [];
+
+        data.forecast.forecastday.forEach(day => {
+          const avgC = day.day.avgtemp_c;
+          const avgF = day.day.avgtemp_f;
+          forecastTemps.push({ C: avgC, F: avgF });
+          labels.push(day.date);
+
+          const showTemp = currentUnit === "C" ? `${avgC}°C` : `${avgF}°F`;
+
+          forecastHTML += `
+            <div class="forecast-day">
+              <span>${day.date}</span>
+              <img src="${day.day.condition.icon}" alt="icon">
+              <span>${showTemp} - ${day.day.condition.text}</span>
+            </div>
+          `;
+        });
+
+        document.getElementById("forecast").innerHTML = forecastHTML;
+
+        // Chart
+        renderChart(labels);
+
+      } catch (error) {
+        document.getElementById("result").innerHTML = `<p style="color:red;">❌ ${error.message}</p>`;
+        document.getElementById("forecast").innerHTML = "";
+      }
+    }
+
+    // GPS location
+    function getMyLocationWeather() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            getWeather(`${lat},${lon}`);
+          },
+          () => alert("Could not get your location. Please enter city manually.")
+        );
+      }
+    }
+
+    // Toggle Celsius/Fahrenheit
+    function toggleUnit() {
+      currentUnit = currentUnit === "C" ? "F" : "C";
+      getWeather();
+    }
+
+    // Chart rendering
+    function renderChart(labels) {
+      const ctx = document.getElementById("tempChart").getContext("2d");
+      if (window.tempChartInstance) window.tempChartInstance.destroy();
+
+      const temps = forecastTemps.map(t => currentUnit === "C" ? t.C : t.F);
+
+      window.tempChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `Avg Temp (°${currentUnit})`,
+            data: temps,
+            borderColor: "blue",
+            backgroundColor: "lightblue",
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } }
+        }
+      });
+    }
+
+    // Load default city
+    window.onload = () => getWeather();
+  </script>
+</body>
+</html>
