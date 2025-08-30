@@ -24,6 +24,6 @@ const url = "https://www.example.com/path/to/page?name=John&age=30";
 console.log(url.replace(`John`, `Doe`)); // jo replace karna ho o phale likho aur jisse karna ho o baad me 
 
 console.log(url.includes(`vikas`));
-console.log(url.includes(`vikas`));
-console.log(url.includes(`vikas`));
-console.log(url.includes(`vikas`));
+console.log(url.includes(`page`));
+console.log(url.includes(`John`));
+console.log(url.includes(`example`));
